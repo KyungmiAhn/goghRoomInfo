@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>#goghRoomInfo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@500&family=Loved+by+the+King&family=Zen+Kurenaido&family=Noto+Sans+KR&family=Noto+Sans+JP&family=Noto+Sans&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #e0e0e0;
+            --cork-color: #bb9963;
+            --primary: #5c4d3c;
+        }
+
+        * { box-sizing: border-box; }
+
+        @font-face {
+            font-family: '독립서체_한용운';
+            src: url('독립서체_한용운_GS.ttf') format('truetype');
+            unicode-range: U+AC00-D7A3, U+1100-11FF, U+3130-318F;
+        }
+        @font-face {
+            font-family: 'Griun_Cocoartz-Rg';
+            src: url('Griun_Cocoartz-Rg.woff2') format('woff2');
+            font-weight: normal;
+            font-display: swap;
+        }
+
+        body { font-family: 'Noto Sans', 'Noto Sans KR', 'Noto Sans JP', sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: var(--bg-color); }
+        
+        .font-sticker { font-family: 'Griun_Cocoartz-Rg', 'Kiwi Maru', sans-serif; }
+        .font-handwriting { font-family: 'Loved by the King', '독립서체_한용운', 'Zen Kurenaido', cursive; line-height: 1.2em; font-size: 1.4em; }
+
+        /* Sidebar Styles */
+        .sidebar { width: 400px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 10; flex-shrink: 0; }
+        .control-group { margin-bottom: 18px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.85em; color: #333; }
+        input[type="text"], textarea, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; font-family: 'Noto Sans KR', sans-serif; }
+        .memo-color-picker { display: flex; gap: 5px; margin-top: 5px; }
+        .color-dot { width: 25px; height: 25px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+        .color-dot.active { border-color: #000; }
+        button { padding: 10px 15px; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 4px; margin-right: 5px; margin-bottom: 5px; font-weight: bold; font-family: 'Noto Sans KR', sans-serif;}
+        button:hover { opacity: 0.9; }
+
+        /* Workspace & Sheet */
+        .workspace { flex: 1; display: flex; justify-content: center; align-items: flex-start; overflow: auto; padding: 40px; background: #bdbdbd; }
+        
+        .sheet-container {
+            width: 1200px; min-height: 900px; padding: 20px;
+            background-color: var(--cork-color); position: relative;
+            border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            flex-shrink: 0; transition: background-color 0.1s;
+        }
+        .sheet-container::before {
+            content: ''; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.25); border-radius: inherit; pointer-events: none;
+        }
+
+        .sheet-wrapper {
+            width: 100%; height: 100%; min-height: 860px;
+            border-radius: 10px; padding: 50px; position: relative; display: flex; flex-direction: column;
+        }
+        .sheet-wrapper::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: inherit;
+            background-color: var(--cork-color);
+            background-image: url("wine-cork.png");
+            background-blend-mode: screen;
+            filter: brightness(0.8) contrast(1.5);
+            box-shadow: inset 0 2px 25px rgba(0,0,0,0.4); transition: background-color 0.1s;
+        }
+
+        /* Polaroid & Memo Base */
+        .polaroid { background: white; padding: 15px 15px 10px 15px; box-shadow: 3px 5px 15px rgba(0,0,0,0.3); display: flex; flex-direction: column; transition: transform 0.2s; }
+        .polaroid img { width: 100%; height: auto; aspect-ratio: 16/9; object-fit: cover; background: #f0f0f0; filter: brightness(1) contrast(1); }
+        .img-caption { margin-top: 8px; text-align: center; color: #333; min-height: 1.2em; word-break: break-all; }
+
+        .memo { padding: 35px 25px 25px; box-shadow: 2px 4px 10px rgba(0,0,0,0.2); position: relative; min-height: 300px; background-color: #fff9c4; }
+        .tape { position: absolute; top: -12px; left: 50%; transform: translateX(-50%) rotate(-1deg); width: 110px; height: 35px; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0,0,0,0.05); z-index: 2;}
+
+        /* Content Layout */
+        .header-section { margin-bottom: 40px; }
+        .title-line { margin-bottom: 15px; }
+        .title-line h1 { display: inline-block; font-size: 3em; margin: 0; padding: 5px 20px; background: rgba(255,255,255,0.85); transform: rotate(-1deg); border-radius: 4px; font-weight: normal; }
+        .info-line { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 1.5em;}
+        .info-pill { background: rgba(255,255,255,0.85); padding: 8px 18px; font-size: 1.4em; border-radius: 4px; transform: rotate(0.5deg); }
+
+        .main-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 40px; }
+        .left-col, .right-col { display: flex; flex-direction: column; gap: 30px; }
+
+        /* Typography & Markdown Support */
+        ruby rt { font-size: 0.5em; color: #777; font-family: 'Noto Sans KR', sans-serif; }
+        .desc-content { line-height: 1.2em; word-break: break-all; }
+        
+        /* 인용문 */
+        blockquote { 
+            margin: 10px 0;
+            padding: 0 0 0 10px;
+            color: #000;
+            background: transparent;
+            position: relative;
+            display: block;
+        }
+
+        blockquote::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #000;
+            border-radius: 2px;
+        }
+        hr { border: 0; border-top: 2px dashed rgba(0,0,0,0.2); margin: 20px 0; }
+        
+        .label-key { background-color: rgba(255, 235, 59, 0.8); padding: 2px 6px; margin-right: 5px; }
+
+        /* Cropper Modal */
+        #cropper-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+        .cropper-box { width: 90%; max-width: 900px; background: #fff; padding: 20px; border-radius: 8px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2 id="ui-title">#goghRoomInfo</h2>
+        
+        <div class="control-group">
+            <label>Language / 言語</label>
+            <select id="lang-select" onchange="changeLang(this.value)">
+                <option value="ko">한국어 (Korean)</option>
+                <option value="en">English</option>
+                <option value="ja">日本語 (Japanese)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label id="lbl-webfont">커스텀 웹폰트 사용</label>
+            <textarea id="in-font-css" rows="3" oninput="updateFont()" placeholder="@font-face { … }&#10;@import url(…);"></textarea>
+            <input type="text" id="in-font-family" oninput="updateFont()" placeholder="font-family" style="margin-top:5px">
+        </div>
+
+        <div class="control-group">
+            <label id="lbl-theme">코르크보드 색상</label>
+            <input type="color" id="theme-color" value="#d4b37f" oninput="updateTheme()">
+        </div>
+
+        <div class="control-group">
+            <label id="lbl-memo-color">포스트잇 색상</label>
+            <div class="memo-color-picker" id="memo-colors">
+                <div class="color-dot active" style="background:#fff9c4" data-color="#fff9c4"></div>
+                <div class="color-dot" style="background:#fdd3e2" data-color="#fdd3e2"></div>
+                <div class="color-dot" style="background:#e2f7e2" data-color="#e2f7e2"></div>
+                <div class="color-dot" style="background:#cce6fc" data-color="#cce6fc"></div>
+                <div class="color-dot" style="background:#ffe0b2" data-color="#ffe0b2"></div>
+                <div class="color-dot" style="background:#f2d7f7" data-color="#f2d7f7"></div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label id="lbl-roomName">룸 이름</label>
+            <input type="text" id="in-roomName" oninput="updateView()" placeholder="Room Name">
+            <label id="lbl-hostName" style="margin-top:10px">호스트 이름 / Room ID</label>
+            <div style="display:flex; gap:5px">
+                <input type="text" id="in-hostName" oninput="updateView()" placeholder="Host Name">
+                <input type="text" id="in-roomId" oninput="updateView()" placeholder="goghRoomID">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label id="lbl-desc">소개글</label>
+            <textarea id="in-desc" rows="6" oninput="updateView()" placeholder="**bold**, *italic*, ~~strike~~, > quote&#10;--- horizontal bar&#10;[ruby](rt), {color}(#f00)&#10;\escape"></textarea>
+        </div>
+
+        <div class="control-group">
+            <label>이미지 캡션</label>
+            <input type="text" id="in-mainCap" oninput="updateView()" placeholder="Main image description">
+            <input type="text" id="in-sub1Cap" oninput="updateView()" placeholder="Sub 1 description" style="margin-top:5px">
+            <input type="text" id="in-sub2Cap" oninput="updateView()" placeholder="Sub 2 description" style="margin-top:5px">
+        </div>
+
+        <div class="control-group">
+            <label id="lbl-labels">추가 정보 라벨</label>
+            <div id="label-list"></div>
+            <button onclick="addLabel()">+</button>
+        </div>
+
+        <div class="control-group" style="background: #f9f9f9; padding: 10px;">
+            <button onclick="exportJSON()" id="btn-exportJSON">JSON 저장</button>
+            <button onclick="document.getElementById('import-json').click()" id="btn-importJSON">JSON 가져오기</button>
+            <input type="file" id="import-json" accept=".json" style="display:none" onchange="importJSON(event)">
+            <button onclick="exportImage()" style="width: 100%; margin-top: 10px; background: #2e7d32;" id="btn-export">이미지(PNG) 저장</button>
+        </div>
+
+        <div style="font-size:0.5em; text-align: center;"><p>made by <a href="https://madost.one/@NAES">@NAES@madost.one</a></p><p>“본 콘텐츠에는 GS칼텍스 독립서체가 적용되었습니다.”<br>GS칼텍스 독립서체 사용<br>© 2025 GS Caltex – All Rights Reserved</p></div>
+    </div>
+
+    <div class="workspace">
+        <div class="sheet-container" id="capture-area">
+            <div class="sheet-wrapper" id="sheet-bg">
+                <div class="memo font-handwriting" id="memo-disclaimer" style="position: absolute; min-height: 100px; top: 40px; right: 20px; width: 325px; font-size: 1em; transform: rotate(2deg)">
+                    <div class="tape"></div>
+                    <div id="txt-disclaimer"></div>
+                </div>
+
+                <div class="header-section font-sticker">
+                    <div class="title-line">
+                        <h1 id="out-roomName">룸 이름</h1>
+                    </div>
+                    <div class="info-line">
+                        <div class="info-pill" id="out-hostName">호스트</div>
+                        <div class="info-pill" id="out-roomId">ID</div>
+                    </div>
+                </div>
+
+                <div class="main-grid">
+                    <div class="left-col">
+                        <div class="polaroid" onclick="triggerUpload('main')" style="transform:rotate(-1deg)">
+                            <img id="out-img-main" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><rect width='100%' height='100%' fill='%23eee'/><text x='50%' y='50%' font-family='sans-serif' text-anchor='middle'>Main Image</text></svg>">
+                            <div class="img-caption font-handwriting" id="out-mainCap"></div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px">
+                            <div class="polaroid" onclick="triggerUpload('sub1')" style="transform:rotate(1.5deg)">
+                                <img id="out-img-sub1" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><rect width='100%' height='100%' fill='%23eee'/><text x='50%' y='50%' font-family='sans-serif' text-anchor='middle'>Sub 1</text></svg>">
+                                <div class="img-caption font-handwriting" id="out-sub1Cap"></div>
+                            </div>
+                            <div class="polaroid" onclick="triggerUpload('sub2')" style="transform:rotate(-1.2deg)">
+                                <img id="out-img-sub2" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><rect width='100%' height='100%' fill='%23eee'/><text x='50%' y='50%' font-family='sans-serif' text-anchor='middle'>Sub 2</text></svg>">
+                                <div class="img-caption font-handwriting" id="out-sub2Cap"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="right-col">
+                        <div class="memo" id="memo-desc" style="transform:rotate(0.5deg)">
+                            <div class="tape"></div>
+                            <div class="desc-content font-handwriting" id="out-desc">소개글이 이곳에 표시됩니다.</div>
+                        </div>
+
+                        <div class="memo font-handwriting" id="memo-info" style="transform:rotate(-2deg)">
+                            <div class="tape"></div>
+                            <h3 id="txt-addInfo" style="margin-top:0.2em; margin-bottom: 0.5em">추가 정보</h3>
+                            <div id="out-labels-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="image-upload" accept="image/*" style="display:none" onchange="handleImageFile(event)">
+    <div id="cropper-modal">
+        <div class="cropper-box">
+            <div style="height: 500px; background: #000;">
+                <img id="cropper-image" src="">
+            </div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="applyCrop()" style="background: #2e7d32;">확인</button>
+                <button onclick="closeCropper()" style="background: #555;">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let state = {
+            lang: 'ko', fontCss: '', fontFamily: '',
+            themeColor: '#d4b37f', memoColor: '#fff9c4',
+            roomName: '', hostName: '', roomId: '', desc: '',
+            mainCap: '', sub1Cap: '', sub2Cap: '',
+            labels: [], images: { main: null, sub1: null, sub2: null }
+        };
+
+        const i18n = {
+            ko: { lblWebfont: "커스텀 웹폰트 사용", lblTheme: "코르크보드 색상", lblMemo: "포스트잇 색상", lblRoom: "룸 이름", lblHost: "호스트 이름 / Room ID", lblDesc: "소개글", btnExportJSON: "JSON 저장", btnImportJSON: "JSON 가져오기", btnExport: "png로 저장", disclaimer: "<span style=\"color:#b7283b\">※이 사이트 및 시트는 비공식입니다. 모든 권리는 원작 gogh의 제작사 ambr에 있습니다.<br>※This site and sheet are unofficial. All rights belong to ambr, the developer of gogh.</sapn>", addInfo: "추가 정보" },
+            en: { lblWebfont: "Using Custom Web Fonts", lblTheme: "Cork Board Color", lblMemo: "Post-it Note Color", lblRoom: "Room Name", lblHost: "Host Name / Room ID", lblDesc: "Description", btnExportJSON: "Save JSON", btnImportJSON: "Import JSON", btnExport: "Export PNG", disclaimer: "<span style=\"color:#b7283b\">※This site and sheet are unofficial. All rights belong to ambr, the developer of gogh.</sapn>", addInfo: "Additional Info" },
+            ja: { lblWebfont: "カスタムWebフォントの使用", lblTheme: "コルクボードの色", lblMemo: "ポストイットの色", lblRoom: "ルーム名", lblHost: "ホスト名 / Room ID", lblDesc: "紹介文", btnExportJSON: "JSON保存", btnImportJSON: "JSON読み込む", btnExport: "pngで画像保存", disclaimer: "<span style=\"color:#b7283b\">※このサイトとシートは非公式です。すべての権利は、原作goghの制作会社ambrにあります。<br>※This site and sheet are unofficial. All rights belong to ambr, the developer of gogh.</sapn>", addInfo: "追加情報" }
+        };
+
+        // --- Custom Font Logic ---
+        function updateFont() {
+            const cssCode = document.getElementById('in-font-css').value;
+            const familyName = document.getElementById('in-font-family').value.trim();
+            
+            state.fontCss = cssCode;
+            state.fontFamily = familyName;
+            
+            let styleTag = document.getElementById('custom-font-style');
+            if (!styleTag) {
+                styleTag = document.createElement('style');
+                styleTag.id = 'custom-font-style';
+                document.head.appendChild(styleTag);
+            }
+            
+            // 입력받은 CSS 코드를 스타일 태그에 주입 (@font-face 등)
+            styleTag.innerHTML = cssCode;
+
+            // 폰트 이름이 입력되면 시트 전체 요소의 폰트를 덮어씌움
+            if (familyName) {
+                const overrideStyle = `"${familyName}", 'Malgun Gothic', sans-serif`;
+                document.querySelectorAll('.font-sticker, .font-handwriting, #txt-addInfo').forEach(el => {
+                    el.style.setProperty('font-family', overrideStyle, 'important');
+                });
+            } else {
+                document.querySelectorAll('.font-sticker, .font-handwriting, #txt-addInfo').forEach(el => {
+                    el.style.removeProperty('font-family');
+                });
+            }
+        }
+
+        // --- Parser & Security ---
+        function escapeHTML(text) {
+            return text.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function parseCustomText(text) {
+            if (!text) return "";
+            
+            let safeText = escapeHTML(text);
+            safeText = safeText.replace(/\\([\[\]\(\)\{\}\*\-\~>_])/g, function(match, p1) {
+                return '&#' + p1.charCodeAt(0) + ';';
+            });
+
+            // 인용문 파싱
+            let lines = safeText.split('\n');
+            let html = lines.map(line => {
+                if (line.startsWith('&gt; ')) {
+                    return `<blockquote>${line.substring(5)}</blockquote>`;
+                }
+                return line;
+            }).join('\n');
+
+            // 기타 마크다운 파싱
+            html = html
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<ruby>$1<rt>$2</rt></ruby>')
+                .replace(/\{([^}]+)\}\((#[0-9a-fA-F]{3,6}|[a-zA-Z]+)\)/g, '<span style="color:$2">$1</span>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+                .replace(/^---$/gm, '<hr>');
+
+            html = html.replace(/<\/blockquote>\n/g, '</blockquote>');
+            html = html.replace(/<hr>\n/g, '<hr>');
+            html = html.replace(/\n/g, '<br>');
+            
+            return html;
+        }
+
+        // --- Core UI Actions ---
+        function updateView() {
+            state.roomName = document.getElementById('in-roomName').value;
+            state.hostName = document.getElementById('in-hostName').value;
+            state.roomId = document.getElementById('in-roomId').value;
+            state.desc = document.getElementById('in-desc').value;
+            state.mainCap = document.getElementById('in-mainCap').value;
+            state.sub1Cap = document.getElementById('in-sub1Cap').value;
+            state.sub2Cap = document.getElementById('in-sub2Cap').value;
+
+            document.getElementById('out-roomName').textContent = state.roomName || 'Room Name';
+            document.getElementById('out-hostName').textContent = state.hostName || 'Host Name';
+            
+            const idVal = state.roomId ? escapeHTML(state.roomId) : 'goghRoomID';
+            document.getElementById('out-roomId').innerHTML = `<span class="label-key" style="font-family: 'Griun_Cocoartz-Rg', sans-serif;">ID</span>${idVal}`;
+            
+            const defaultDesc = "Type Here";
+            document.getElementById('out-desc').innerHTML = parseCustomText(state.desc) || parseCustomText(defaultDesc);
+            
+            document.getElementById('out-mainCap').textContent = state.mainCap;
+            document.getElementById('out-sub1Cap').textContent = state.sub1Cap;
+            document.getElementById('out-sub2Cap').textContent = state.sub2Cap;
+
+            const container = document.getElementById('out-labels-container');
+            container.innerHTML = '';
+            if (state.labels.length > 0) {
+                document.getElementById('memo-info').style.display = 'block';
+                state.labels.forEach(l => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = "10px";
+                    div.innerHTML = `<span class="label-key"">${escapeHTML(l.key)}</span> ${escapeHTML(l.val)}`;
+                    container.appendChild(div);
+                });
+            } else {
+                document.getElementById('memo-info').style.display = 'none';
+            }
+        }
+
+        function updateTheme() {
+            state.themeColor = document.getElementById('theme-color').value;
+            document.getElementById('capture-area').style.backgroundColor = state.themeColor;
+            document.documentElement.style.setProperty('--cork-color', state.themeColor);
+        }
+
+        function changeLang(lang) {
+            state.lang = lang;
+            const t = i18n[lang];
+            document.getElementById('lbl-webfont').textContent = t.lblWebfont;
+            document.getElementById('lbl-theme').textContent = t.lblTheme;
+            document.getElementById('lbl-memo-color').textContent = t.lblMemo;
+            document.getElementById('lbl-roomName').textContent = t.lblRoom;
+            document.getElementById('lbl-hostName').textContent = t.lblHost;
+            document.getElementById('lbl-desc').textContent = t.lblDesc;
+            document.getElementById('btn-exportJSON').textContent = t.btnExportJSON;
+            document.getElementById('btn-importJSON').textContent = t.btnImportJSON;
+            document.getElementById('btn-export').textContent = t.btnExport;
+            
+            document.getElementById('txt-disclaimer').innerHTML = t.disclaimer;
+            document.getElementById('txt-addInfo').textContent = t.addInfo;
+            updateView();
+        }
+
+        // --- Memo Color Handler ---
+        function applyMemoColor(color) {
+            state.memoColor = color;
+            document.querySelectorAll('.color-dot').forEach(d => {
+                if(d.dataset.color === color) d.classList.add('active');
+                else d.classList.remove('active');
+            });
+            ['memo-disclaimer', 'memo-desc', 'memo-info'].forEach(id => {
+                document.getElementById(id).style.backgroundColor = color;
+            });
+        }
+
+        document.getElementById('memo-colors').addEventListener('click', (e) => {
+            if (e.target.classList.contains('color-dot')) {
+                applyMemoColor(e.target.dataset.color);
+            }
+        });
+
+        // --- Label Actions ---
+        function addLabel(k='', v='') {
+            state.labels.push({key: k, val: v});
+            renderLabelInputs();
+            updateView();
+        }
+        function renderLabelInputs() {
+            const list = document.getElementById('label-list');
+            list.innerHTML = '';
+            state.labels.forEach((l, i) => {
+                const div = document.createElement('div');
+                div.style.display = "flex"; div.style.gap = "5px"; div.style.marginBottom = "5px";
+                div.innerHTML = `
+                    <input type="text" value="${l.key}" oninput="state.labels[${i}].key=this.value; updateView()" placeholder="Label">
+                    <input type="text" value="${l.val}" oninput="state.labels[${i}].val=this.value; updateView()" placeholder="Content">
+                    <button onclick="state.labels.splice(${i},1); renderLabelInputs(); updateView()" style="background:#888; margin:0">X</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // --- Image Cropper Logic ---
+        let currentImgKey = '';
+        let cropper = null;
+        function triggerUpload(key) {
+            currentImgKey = key;
+            document.getElementById('image-upload').value = '';
+            document.getElementById('image-upload').click();
+        }
+        function handleImageFile(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById('cropper-modal').style.display = 'flex';
+                const img = document.getElementById('cropper-image');
+                img.src = ev.target.result;
+                if(cropper) cropper.destroy();
+                cropper = new Cropper(img, { aspectRatio: 16/9, viewMode: 1 });
+            };
+            reader.readAsDataURL(file);
+        }
+        function applyCrop() {
+            const canvas = cropper.getCroppedCanvas({ width: 1280, height: 720 });
+            const data = canvas.toDataURL();
+            state.images[currentImgKey] = data;
+            document.getElementById(`out-img-${currentImgKey}`).src = data;
+            closeCropper();
+        }
+        function closeCropper() {
+            document.getElementById('cropper-modal').style.display = 'none';
+        }
+
+        // --- Export & Import ---
+        async function exportImage() {
+            const captureArea = document.getElementById('capture-area');
+            const btn = document.getElementById('btn-export');
+            btn.textContent = "...Capturing...";
+            
+            const canvas = await html2canvas(captureArea, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: null,
+                scrollY: -window.scrollY
+            });
+
+            const link = document.createElement('a');
+            link.download = `gogh_sheet_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            btn.textContent = i18n[state.lang].btnExport;
+        }
+
+        function exportJSON() {
+            const data = JSON.stringify(state, null, 2);
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'gogh_room_data.json';
+            a.click();
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const data = JSON.parse(ev.target.result);
+                state = data;
+                
+                document.getElementById('lang-select').value = state.lang || 'ko';
+                
+                document.getElementById('in-font-css').value = state.fontCss || '';
+                document.getElementById('in-font-family').value = state.fontFamily || '';
+                
+                document.getElementById('theme-color').value = state.themeColor;
+                document.getElementById('in-roomName').value = state.roomName;
+                document.getElementById('in-hostName').value = state.hostName;
+                document.getElementById('in-roomId').value = state.roomId;
+                document.getElementById('in-desc').value = state.desc;
+                document.getElementById('in-mainCap').value = state.mainCap;
+                document.getElementById('in-sub1Cap').value = state.sub1Cap;
+                document.getElementById('in-sub2Cap').value = state.sub2Cap;
+                
+                if(state.images.main) document.getElementById('out-img-main').src = state.images.main;
+                if(state.images.sub1) document.getElementById('out-img-sub1').src = state.images.sub1;
+                if(state.images.sub2) document.getElementById('out-img-sub2').src = state.images.sub2;
+
+                if (state.memoColor) applyMemoColor(state.memoColor);
+
+                renderLabelInputs();
+                updateTheme();
+                updateFont();
+                changeLang(state.lang || 'ko');
+            };
+            reader.readAsText(file);
+        }
+
+        // Init
+        changeLang('ko');
+        applyMemoColor(state.memoColor);
+    </script>
+</body>
+</html>
