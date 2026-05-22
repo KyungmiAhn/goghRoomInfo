@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>#goghRoomInfo</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@500&family=Loved+by+the+King&family=Zen+Kurenaido&family=Noto+Sans+KR&family=Noto+Sans+JP&family=Noto+Sans&display=swap" rel="stylesheet">
@@ -497,16 +497,16 @@
             btn.textContent = "...Capturing...";
             
             try {
-                // html-to-image를 사용하여 고화질(pixelRatio: 2)로 캡처
-                const dataUrl = await htmlToImage.toPng(captureArea, {
-                    quality: 1,
-                    pixelRatio: 2,
-                    backgroundColor: null // 투명 배경 유지 (필요시 state.themeColor로 변경)
+                const canvas = await html2canvas(captureArea, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: null
                 });
 
                 const link = document.createElement('a');
-                link.download = `gogh_room_info_${Date.now()}.png`;
-                link.href = dataUrl;
+                link.download = `gogh_sheet_${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
                 link.click();
             } catch (error) {
                 console.error('캡처 중 오류 발생:', error);
